@@ -51,5 +51,9 @@ group :development, :test do
   # for elasticsearch
   gem 'elasticsearch-model'
   gem 'elasticsearch-rails'
+
+
+  # for file upload
+  gem 'aws-sdk-s3'
   
 end

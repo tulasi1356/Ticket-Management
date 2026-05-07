@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Search } from "lucide-react"
 import { CreateTicket } from "../createTicket"
+import { TicketDetailPanel } from "./TicketDetailPanel"
 import { TicketListItem } from "./TicketListItem"
 import type { BoardView, Project, Sprint, Ticket } from "./types"
 import { computeTicketStats, formatTicketKey } from "./utils"
@@ -37,12 +38,26 @@ export function SprintDashboardPanel({
   const [search, setSearch] = useState("")
   const [priorityFilter, setPriorityFilter] = useState<Set<string>>(new Set())
   const [assigneeFilter, setAssigneeFilter] = useState<Set<number>>(new Set())
+  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null)
 
   useEffect(() => {
     setSearch("")
     setPriorityFilter(new Set())
     setAssigneeFilter(new Set())
+    setSelectedTicketId(null)
   }, [resetFiltersKey])
+
+  const selectedTicket = useMemo(() => {
+    if (selectedTicketId == null) return undefined
+    return ticketsForView.find((t) => t.id === selectedTicketId)
+  }, [ticketsForView, selectedTicketId])
+
+  useEffect(() => {
+    if (selectedTicketId == null) return
+    if (!ticketsForView.some((t) => t.id === selectedTicketId)) {
+      setSelectedTicketId(null)
+    }
+  }, [ticketsForView, selectedTicketId])
 
   const stats = useMemo(() => computeTicketStats(ticketsForView), [ticketsForView])
 
@@ -151,6 +166,14 @@ export function SprintDashboardPanel({
           <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
             {emptyMessage}
           </div>
+        ) : selectedTicket ? (
+          <TicketDetailPanel
+            ticket={selectedTicket}
+            ticketKey={formatTicketKey(projectDisplayName, selectedTicket.id)}
+            projectName={selectedProject?.name}
+            sprintName={selectedSprint?.name}
+            onBack={() => setSelectedTicketId(null)}
+          />
         ) : (
           <>
             <div className="flex flex-row justify-between gap-4 mb-6">
@@ -244,6 +267,8 @@ export function SprintDashboardPanel({
                         <TicketListItem
                           ticket={ticket}
                           ticketKey={formatTicketKey(projectDisplayName, ticket.id)}
+                          selected={selectedTicketId === ticket.id}
+                          onSelect={() => setSelectedTicketId(ticket.id)}
                         />
                       </li>
                     ))}
@@ -263,6 +288,8 @@ export function SprintDashboardPanel({
                         <TicketListItem
                           ticket={ticket}
                           ticketKey={formatTicketKey(projectDisplayName, ticket.id)}
+                          selected={selectedTicketId === ticket.id}
+                          onSelect={() => setSelectedTicketId(ticket.id)}
                         />
                       </li>
                     ))}

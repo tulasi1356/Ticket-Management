@@ -21,6 +21,7 @@ export type Ticket = {
   title: string
   sprint_id: number
   project_id?: number
+  description?: string | null
   assignee?: TicketAssignee
   status: string
   priority: string

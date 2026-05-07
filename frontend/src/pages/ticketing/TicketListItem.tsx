@@ -15,12 +15,25 @@ function IssueIcon({ issueType }: { issueType: string }) {
   return <ListTodo className="size-4 text-slate-500" aria-hidden />
 }
 
-export function TicketListItem({ ticket, ticketKey }: { ticket: Ticket; ticketKey: string }) {
+export function TicketListItem({
+  ticket,
+  ticketKey,
+  onSelect,
+  selected,
+}: {
+  ticket: Ticket
+  ticketKey: string
+  onSelect?: () => void
+  selected?: boolean
+}) {
   return (
-    <div
+    <button
+      type="button"
+      onClick={onSelect}
       className={cn(
-        "flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm",
-        "transition-shadow hover:shadow-md"
+        "flex w-full cursor-pointer items-center gap-3 rounded-lg border bg-white px-3 py-2.5 text-left shadow-sm",
+        "transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30",
+        selected ? "border-blue-400 ring-1 ring-blue-100" : "border-gray-200"
       )}
     >
       {/* <input
@@ -78,6 +91,6 @@ export function TicketListItem({ ticket, ticketKey }: { ticket: Ticket; ticketKe
           className="size-8 text-xs"
         />
       </div>
-    </div>
+    </button>
   )
 }
