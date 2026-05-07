@@ -6,15 +6,15 @@ import {
     createRouter,
     redirect,
 } from '@tanstack/react-router'
-import AllUsers from './pages/allUsers'
-import Home from './pages/home'
-import SignUp from './pages/signUp'
-import Login from './pages/login'
+import AllUsers from './pages/UsersPage'
+import Home from './pages/HomePage'
+import SignUp from './pages/SignUpPage'
+import Login from './pages/LoginPage'
 import { useAuthStore } from './stores/authStore'
-import Dashboard from './pages/dashboard'
+import Dashboard from './pages/DashboardPage'
+import AllProjects from './pages/ProjectsPage'
+import { TicketingSystem } from './pages/ticketing/TicketingSystem'
 import { Navbar } from './components/Navbar'
-import AllProjects from './pages/allProjects'
-import { TicketingSystem } from './pages/addSprint'
 
 const rootRoute = createRootRoute({
     component: RootLayout,
@@ -90,11 +90,6 @@ const allProjectsRoute = createRoute({
     component: AllProjects,
 })
 
-const addSprintRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/add_sprint',
-    component: TicketingSystem,
-})
 
 const ticketingSystemRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -109,7 +104,6 @@ const routeTree = rootRoute.addChildren([
     allUsersRoute,  
     dashboardRoute,
     allProjectsRoute,
-    addSprintRoute,
     ticketingSystemRoute
 ])
 

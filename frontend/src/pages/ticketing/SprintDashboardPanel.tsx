@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Search } from "lucide-react"
-import { CreateTicket } from "../createTicket"
+import { CreateTicket } from "../../components/createTicket"
 import { TicketDetailPanel } from "./TicketDetailPanel"
 import { TicketListItem } from "./TicketListItem"
 import type { BoardView, Project, Sprint, Ticket } from "./types"

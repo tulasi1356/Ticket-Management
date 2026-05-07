@@ -34,7 +34,7 @@ export function Navbar() {
                   <Link to="/all_projects" id = "projects-link" aria-label="Projects" className="hover:underline">
                     Projects
                   </Link>
-                  <Link to="/add_sprint" id = "all-tickets-link" aria-label="All tickets" className="hover:underline">
+                  <Link to="/ticketing_system" id = "all-tickets-link" aria-label="All tickets" className="hover:underline">
                     All Tickets
                   </Link>
                 </>
