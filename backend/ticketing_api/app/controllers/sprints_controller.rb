@@ -3,27 +3,11 @@ class SprintsController < ApplicationController
     before_action :require_current_user
 
     def create
-        project = Project.find_by(id: params[:project_id])
-        if project.nil?
-            return render json: { error: "Project not found" }, status: :not_found
-        end
-
-        if !current_user.admin? && !current_user.projects.exists?(id: project.id)
-            return render json: { error: "Forbidden" }, status: :forbidden
-        end
-
-        sprint = Sprint.new(sprint_params)
-        if sprint.start_date > Date.today
-            sprint.status = :planned
-        elsif sprint.start_date <= Date.today && sprint.end_date >= Date.today
-            sprint.status = :active
-        elsif sprint.end_date < Date.today
-            sprint.status = :completed
-        end
-        if sprint.save
-            render json: sprint, status: :created
+        result = Sprints::CreateService.call(current_user: current_user, params: params)
+        if result[:ok]
+            render json: result[:sprint], status: :created
         else
-            render json: { errors: sprint.errors.full_messages }, status: :unprocessable_entity
+            render json: result[:body], status: result[:status]
         end
     end
 
@@ -40,7 +24,4 @@ class SprintsController < ApplicationController
     end
 
     private
-    def sprint_params
-        params.permit(:name, :start_date, :end_date, :project_id)
-    end
 end

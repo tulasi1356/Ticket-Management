@@ -42,61 +42,13 @@ class UsersController < ApplicationController
 
 
     def search
-        query = params[:query]
-
-        # Without a project scope, only admins may search the full directory (e.g. assigning users to a project).
-        if params[:project_id].blank? && !current_user.admin?
-            return render json: { error: "Forbidden" }, status: :forbidden
+        result = Users::SearchService.call(current_user: current_user, params: params)
+        unless result[:ok]
+            render json: result[:body], status: result[:status]
+            return
         end
 
-        es_query =
-          if query.present?
-            {
-              multi_match: {
-                query: query,
-                type: "bool_prefix",
-                fields: [
-                  "name^2",
-                  "name._2gram",
-                  "name._3gram",
-                  "email",
-                  "email._2gram",
-                  "email._3gram"
-                ]
-              }
-            }
-          else
-            { match_all: {} }
-          end
-
-        scoped_query =
-          if params[:project_id].present?
-            project = Project.find_by(id: params[:project_id])
-            unless project
-              return render json: { error: "Project not found" }, status: :not_found
-            end
-
-            unless current_user.admin? || current_user.projects.exists?(id: project.id)
-              return render json: { error: "Forbidden" }, status: :forbidden
-            end
-
-            member_ids = project.users.ids.map(&:to_s)
-            return render json: [], status: :ok if member_ids.empty?
-
-            {
-              bool: {
-                must: [es_query],
-                filter: [{ ids: { values: member_ids } }]
-              }
-            }
-          else
-            es_query
-          end
-
-        response = User.search(query: scoped_query)
-
-        users = response.records.to_a
-        render json: users.as_json(only: [:id, :name, :email]), status: :ok
+        render json: result[:users].as_json(only: [:id, :name, :email]), status: :ok
     end
 
     def destroy
