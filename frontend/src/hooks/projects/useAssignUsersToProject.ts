@@ -6,8 +6,9 @@ export const useAssignUsersToProject = () => {
 
   return useMutation({
     mutationFn: assignUsersToProject,
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["projects"] })
+      queryClient.invalidateQueries({ queryKey: ["project", variables.id] })
     },
   })
 }

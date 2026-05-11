@@ -28,7 +28,6 @@ import {
 } from "../components/ui/card"
 import { UserMultiSelect } from "../components/UserMultiSelect"
 import { DeleteIcon, EditIcon, Eye } from "lucide-react"
-import { assignUsersToProject } from "../api/projectApi"
 import { useEditProject } from "../hooks/projects/useEditProject"
 import { useGetProject } from "../hooks/projects/useGetProject"
 import type { Project } from "./ticketing/types"
@@ -77,6 +76,7 @@ export function CreateOrEditProject({ isEdit = false, projectId, onClose }: Crea
     const { data: users } = useUsers(!!isAdmin)
     const { mutateAsync: createProject } = useCreateProject()
     const { mutateAsync: editProject } = useEditProject()
+    const { mutateAsync: assignUsersMutation } = useAssignUsersToProject()
     const { data: project } = useGetProject(projectId ?? 0)
     const [createSelectedUserIds, setCreateSelectedUserIds] = useState<number[]>([])
 
@@ -104,9 +104,13 @@ export function CreateOrEditProject({ isEdit = false, projectId, onClose }: Crea
 
     const handleSubmit = async (data: ProjectFormValues) => {
         try {
-            const project = await createProject(data)
-            if (createSelectedUserIds.length) {
-                await assignUsersToProject({ id: project.id, user_ids: createSelectedUserIds })
+            const created = await createProject(data)
+            const pid = Number(created.id)
+            if (createSelectedUserIds.length && Number.isFinite(pid)) {
+                await assignUsersMutation({
+                    id: pid,
+                    user_ids: createSelectedUserIds.map(Number),
+                })
             }
             methods.reset()
             setCreateSelectedUserIds([])
@@ -118,9 +122,14 @@ export function CreateOrEditProject({ isEdit = false, projectId, onClose }: Crea
 
     const handleEditSubmit = async (data: ProjectFormValues) => {
         try {
-            const updated = await editProject({ id: projectId ?? 0, name: data.name, description: data.description })
-            if (createSelectedUserIds.length) {
-                await assignUsersToProject({ id: updated.id, user_ids: createSelectedUserIds })
+            const id = projectId ?? 0
+            const updated = await editProject({ id, name: data.name, description: data.description })
+            const pid = Number(updated.id ?? id)
+            if (createSelectedUserIds.length && Number.isFinite(pid)) {
+                await assignUsersMutation({
+                    id: pid,
+                    user_ids: createSelectedUserIds.map(Number),
+                })
             }
             methods.reset()
             setCreateSelectedUserIds([])

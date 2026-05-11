@@ -35,6 +35,8 @@ const STATUSES = [
   { value: "done", label: "Done" },
 ] as const
 
+const OTHER_LIST_MAX_HEIGHT_CLASS = "max-h-[min(34rem,55vh)]"
+
 export function SprintDashboardPanel({
   selectedProject,
   selectedSprint,
@@ -190,7 +192,7 @@ export function SprintDashboardPanel({
   })()
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-gray-50/80">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gray-50/80">
       <header className="flex shrink-0 flex-wrap items-start justify-between gap-4 border-b border-gray-200 bg-white px-6 py-4">
         <div>
           <p className="text-xs text-gray-500">Board</p>
@@ -284,7 +286,7 @@ export function SprintDashboardPanel({
                       ) : null}
                     </div>
                   </CardHeader>
-                  <CardContent className="flex flex-col gap-5 pt-4">
+                  <CardContent className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-y-contain pt-4">
                     <div className="space-y-2">
                       <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
                         Search
@@ -469,23 +471,33 @@ export function SprintDashboardPanel({
               )}
 
               {otherGroup.length > 0 && (
-                <section>
-                  <h2 className="mb-3 text-sm font-semibold text-gray-800">
+                <section aria-labelledby="other-tickets-heading">
+                  <h2
+                    id="other-tickets-heading"
+                    className="mb-3 text-sm font-semibold text-gray-800"
+                  >
                     Other{" "}
                     <span className="font-normal text-gray-500">({otherTotalLabel})</span>
                   </h2>
-                  <ul className="flex flex-col gap-2">
-                    {otherGroup.map((ticket) => (
-                      <li key={ticket.id}>
-                        <TicketListItem
-                          ticket={ticket}
-                          ticketKey={formatTicketKey(projectDisplayName, ticket.id)}
-                          selected={selectedTicketId === ticket.id}
-                          onSelect={() => setSelectedTicketId(ticket.id)}
-                        />
-                      </li>
-                    ))}
-                  </ul>
+                  <div
+                    className={cn(
+                      OTHER_LIST_MAX_HEIGHT_CLASS,
+                      "overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-xl border border-gray-200 bg-white p-2 shadow-sm scroll-smooth"
+                    )}
+                  >
+                    <ul className="flex flex-col gap-2">
+                      {otherGroup.map((ticket) => (
+                        <li key={ticket.id}>
+                          <TicketListItem
+                            ticket={ticket}
+                            ticketKey={formatTicketKey(projectDisplayName, ticket.id)}
+                            selected={selectedTicketId === ticket.id}
+                            onSelect={() => setSelectedTicketId(ticket.id)}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </section>
               )}
 

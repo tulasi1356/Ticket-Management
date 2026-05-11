@@ -93,7 +93,7 @@ export function TicketingSystem() {
   if (!data?.length) {
     return (
       <div className="p-6 text-muted-foreground">
-        No projects yet. Add a project from the Projects page.
+        No projects yet
       </div>
     )
   }

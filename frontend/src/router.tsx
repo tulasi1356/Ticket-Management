@@ -43,7 +43,7 @@ const rootRoute = createRootRoute({
 
 function RootLayout() {
     return (
-        <div>
+        <div className="flex min-h-screen flex-col">
             <a className="skip-to-main" href="#main-content">
                 Skip to main content
             </a>
@@ -51,7 +51,7 @@ function RootLayout() {
             <main
                 id="main-content"
                 tabIndex={-1}
-                className="outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[color:var(--app-focus-ring-color)]"
+                className="flex min-h-0 flex-1 flex-col outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[color:var(--app-focus-ring-color)]"
             >
                 <Outlet />
             </main>

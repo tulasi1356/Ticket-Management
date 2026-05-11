@@ -30,8 +30,10 @@ class ProjectsController < ApplicationController
 
 
     def assign_users_to_project
-        project = Project.find(params[:id])
-        users = User.where(id: params[:user_ids])
+        p = assign_users_params
+        project = Project.find(p[:id])
+        ids = Array(p[:user_ids]).flatten.map(&:to_i).reject(&:zero?).uniq
+        users = User.where(id: ids)
         if project.update(user_ids: users.pluck(:id))
             project.reload
             render json: project.as_json(
@@ -76,5 +78,9 @@ class ProjectsController < ApplicationController
 
     def project_params
         params.permit(:name, :description)
+    end
+
+    def assign_users_params
+        params.permit(:id, user_ids: [])
     end
 end
