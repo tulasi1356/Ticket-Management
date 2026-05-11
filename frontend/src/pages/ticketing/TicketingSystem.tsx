@@ -3,19 +3,17 @@ import { useRouterState } from "@tanstack/react-router"
 
 import { useProjects } from "../../hooks/projects/useProjects"
 import { useGetSprint } from "../../hooks/sprints/useGetSprint"
-import { useGetTickets } from "../../hooks/tickets/useGetTickets"
 import { useAuthStore } from "../../stores/authStore"
 
 import { SprintDashboardPanel } from "./SprintDashboardPanel"
 import { TicketingSidebar } from "./TicketingSidebar"
-import type { BoardView, Project, Sprint, Ticket } from "./types"
+import type { BoardView, Project, Sprint } from "./types"
 
 export function TicketingSystem() {
   const user = useAuthStore((s) => s.user)
   const enabled = !!user
   const { data, error, isLoading } = useProjects(enabled)
   const { data: sprints, error: errorSprints, isLoading: isLoadingSprints } = useGetSprint(enabled)
-  const { data: tickets, error: errorTickets, isLoading: isLoadingTickets } = useGetTickets(enabled)
 
   const searchProjectId = useRouterState({
     select: (s) => {
@@ -66,54 +64,6 @@ export function TicketingSystem() {
   const selectedProject = data?.find((p: Project) => p.id === selectedProjectId)
   const selectedSprint = sprintsForProject.find((s: Sprint) => s.id === selectedSprintId)
 
-  const sprintProjectMap = useMemo(() => {
-    const m = new Map<number, number>()
-    for (const s of sprints ?? []) {
-      m.set(s.id, s.project_id)
-    }
-    return m
-  }, [sprints])
-
-  const ticketsForView = useMemo(() => {
-    if (!tickets?.length || selectedProjectId == null) return []
-
-    const projectId = selectedProjectId
-    const resolveProject = (t: Ticket) =>
-      t.project_id ?? sprintProjectMap.get(t.sprint_id)
-
-    if (boardView === "sprint") {
-      if (selectedSprintId == null) return []
-      return tickets.filter((t: Ticket) => t.sprint_id === selectedSprintId)
-    }
-
-    if (boardView === "all") {
-      return tickets.filter((t: Ticket) => resolveProject(t) === projectId)
-    }
-
-    if (boardView === "mine") {
-      const uid = user?.id
-      if (uid == null) return []
-      return tickets.filter(
-        (t: Ticket) =>
-          resolveProject(t) === projectId && t.assignee?.id === uid
-      )
-    }
-
-    /* backlog — requires nullable sprint in API */
-    return tickets.filter(
-      (t: Ticket) =>
-        resolveProject(t) === projectId &&
-        (t as Ticket & { sprint_id?: number }).sprint_id == null
-    )
-  }, [
-    tickets,
-    selectedProjectId,
-    selectedSprintId,
-    boardView,
-    user?.id,
-    sprintProjectMap,
-  ])
-
   const resetFiltersKey = `${boardView}-${selectedProjectId ?? ""}-${selectedSprintId ?? ""}`
 
   if (!user) {
@@ -124,7 +74,7 @@ export function TicketingSystem() {
     )
   }
 
-  if (isLoading || isLoadingSprints || isLoadingTickets) {
+  if (isLoading || isLoadingSprints) {
     return (
       <div className="flex min-h-[240px] items-center justify-center text-gray-500">
         Loading...
@@ -132,10 +82,9 @@ export function TicketingSystem() {
     )
   }
 
-  if (error || errorSprints || errorTickets) {
+  if (error || errorSprints) {
     console.error("Error fetching projects:", error)
     console.error("Error fetching sprints:", errorSprints)
-    console.error("Error fetching tickets:", errorTickets)
     return (
       <div className="p-6 text-red-600">Could not load ticketing data.</div>
     )
@@ -169,7 +118,6 @@ export function TicketingSystem() {
         selectedProjectId={selectedProjectId}
         selectedSprintId={selectedSprintId}
         sprintsForProject={sprintsForProject}
-        ticketsForView={ticketsForView}
         projectDisplayName={selectedProject?.name ?? ""}
         boardView={boardView}
         resetFiltersKey={resetFiltersKey}

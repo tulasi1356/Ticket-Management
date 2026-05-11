@@ -3,14 +3,15 @@ import { Download, Loader2, Search } from "lucide-react"
 import { CreateTicket } from "../../components/createTicket"
 import { TicketDetailPanel } from "./TicketDetailPanel"
 import { TicketListItem } from "./TicketListItem"
-import type { BoardView, Project, Sprint, Ticket } from "./types"
-import { computeTicketStats, formatTicketKey } from "./utils"
+import type { BoardView, Project, Sprint } from "./types"
+import { formatTicketKey } from "./utils"
 import { Badge } from "../../components/ui/badge"
 import { Button } from "../../components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card"
 import { Input } from "../../components/ui/input"
 import { UserMultiSelect } from "../../components/UserMultiSelect"
 import { useAdminTicketExport } from "../../hooks/useAdminTicketExport"
+import { useTicketsBoardInfinite } from "../../hooks/tickets/useTicketsBoardInfinite"
 import { cn } from "../../lib/utils"
 
 type SprintDashboardPanelProps = {
@@ -19,7 +20,6 @@ type SprintDashboardPanelProps = {
   selectedProjectId: number | null
   selectedSprintId: number | null
   sprintsForProject: Sprint[]
-  ticketsForView: Ticket[]
   projectDisplayName: string
   boardView: BoardView
   resetFiltersKey: string
@@ -35,32 +35,19 @@ const STATUSES = [
   { value: "done", label: "Done" },
 ] as const
 
-function ticketOverlapsDateRange(
-  ticket: Ticket,
-  rangeStart: string,
-  rangeEnd: string
-): boolean {
-  const ts = ticket.start_date
-  const te = ticket.end_date
-  if (!ts || !te) return false
-  const from = rangeStart || "0000-01-01"
-  const to = rangeEnd || "9999-12-31"
-  return !(te < from || ts > to)
-}
-
 export function SprintDashboardPanel({
   selectedProject,
   selectedSprint,
   selectedProjectId,
   selectedSprintId,
   sprintsForProject: _sprintsForProject,
-  ticketsForView,
   projectDisplayName,
   boardView,
   resetFiltersKey,
   isAdmin = false,
 }: SprintDashboardPanelProps) {
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [priorityFilter, setPriorityFilter] = useState<Set<string>>(new Set())
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set())
   const [assigneeFilter, setAssigneeFilter] = useState<Set<number>>(new Set())
@@ -70,7 +57,13 @@ export function SprintDashboardPanel({
   const { busy: exportBusy, run: runAdminExport } = useAdminTicketExport()
 
   useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedSearch(search), 350)
+    return () => window.clearTimeout(t)
+  }, [search])
+
+  useEffect(() => {
     setSearch("")
+    setDebouncedSearch("")
     setPriorityFilter(new Set())
     setStatusFilter(new Set())
     setAssigneeFilter(new Set())
@@ -79,80 +72,65 @@ export function SprintDashboardPanel({
     setSelectedTicketId(null)
   }, [resetFiltersKey])
 
-  const selectedTicket = useMemo(() => {
-    if (selectedTicketId == null) return undefined
-    return ticketsForView.find((t) => t.id === selectedTicketId)
-  }, [ticketsForView, selectedTicketId])
-
-  useEffect(() => {
-    if (selectedTicketId == null) return
-    if (!ticketsForView.some((t) => t.id === selectedTicketId)) {
-      setSelectedTicketId(null)
-    }
-  }, [ticketsForView, selectedTicketId])
-
-  const stats = useMemo(() => computeTicketStats(ticketsForView), [ticketsForView])
-
-  const assigneesInView = useMemo(() => {
-    const map = new Map<number, { name: string; email?: string }>()
-    for (const t of ticketsForView) {
-      if (t.assignee?.id != null) {
-        map.set(t.assignee.id, {
-          name: t.assignee.name,
-          email: t.assignee.email,
-        })
-      }
-    }
-    return [...map.entries()]
-      .sort((a, b) => a[1].name.localeCompare(b[1].name))
-      .map(([id, u]) => ({ id, ...u }))
-  }, [ticketsForView])
-
-  const filteredTickets = useMemo(() => {
-    let list = ticketsForView
-
-    if (priorityFilter.size > 0) {
-      list = list.filter((t) => priorityFilter.has(t.priority))
-    }
-
-    if (statusFilter.size > 0) {
-      list = list.filter((t) => statusFilter.has(t.status))
-    }
-
-    if (assigneeFilter.size > 0) {
-      list = list.filter(
-        (t) => t.assignee?.id != null && assigneeFilter.has(t.assignee.id)
-      )
-    }
-
-    if (dateFrom || dateTo) {
-      list = list.filter((t) => ticketOverlapsDateRange(t, dateFrom, dateTo))
-    }
-
-    const q = search.trim().toLowerCase()
-    if (q) {
-      list = list.filter((t) => t.title.toLowerCase().includes(q))
-    }
-
-    return list
-  }, [
-    ticketsForView,
+  const ticketsQuery = useTicketsBoardInfinite({
+    enabled: true,
+    projectId: selectedProjectId,
+    sprintId: selectedSprintId,
+    boardView,
+    debouncedSearch,
     priorityFilter,
     statusFilter,
     assigneeFilter,
     dateFrom,
     dateTo,
-    search,
-  ])
+  })
+
+  const allTickets = useMemo(
+    () => ticketsQuery.data?.pages.flatMap((p) => p.tickets) ?? [],
+    [ticketsQuery.data]
+  )
+
+  const firstPage = ticketsQuery.data?.pages[0]
+  const totalCount = firstPage?.meta.total ?? 0
+  const statsFromApi = firstPage?.stats ?? {
+    total: 0,
+    todo: 0,
+    done: 0,
+    high_priority: 0,
+  }
+
+  const selectedTicket = useMemo(() => {
+    if (selectedTicketId == null) return undefined
+    return allTickets.find((t) => t.id === selectedTicketId)
+  }, [allTickets, selectedTicketId])
+
+  useEffect(() => {
+    if (selectedTicketId == null) return
+    if (ticketsQuery.isPending) return
+    const flat = ticketsQuery.data?.pages.flatMap((p) => p.tickets) ?? []
+    if (!flat.some((t) => t.id === selectedTicketId)) {
+      setSelectedTicketId(null)
+    }
+  }, [selectedTicketId, ticketsQuery.isPending, ticketsQuery.data])
+
+  const projectUsersForFilter = useMemo(() => {
+    const users = selectedProject?.users
+    if (!users?.length) return []
+    return users
+      .map((u) => ({ id: u.id, name: u.name, email: u.email }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [selectedProject?.users])
 
   const highGroup = useMemo(
-    () => filteredTickets.filter((t) => t.priority === "high"),
-    [filteredTickets]
+    () => allTickets.filter((t) => t.priority === "high"),
+    [allTickets]
   )
   const otherGroup = useMemo(
-    () => filteredTickets.filter((t) => t.priority !== "high"),
-    [filteredTickets]
+    () => allTickets.filter((t) => t.priority !== "high"),
+    [allTickets]
   )
+
+  const otherTotalLabel = Math.max(0, statsFromApi.total - statsFromApi.high_priority)
 
   const togglePriority = (priority: string) => {
     setPriorityFilter((prev) => {
@@ -174,6 +152,7 @@ export function SprintDashboardPanel({
 
   const clearSidebarFilters = () => {
     setSearch("")
+    setDebouncedSearch("")
     setPriorityFilter(new Set())
     setStatusFilter(new Set())
     setAssigneeFilter(new Set())
@@ -253,9 +232,7 @@ export function SprintDashboardPanel({
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-        {!selectedProjectId ||
-        (boardView === "sprint" && !selectedSprintId) ||
-        ticketsForView.length === 0 ? (
+        {!selectedProjectId || (boardView === "sprint" && !selectedSprintId) ? (
           <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
             {emptyMessage}
           </div>
@@ -269,6 +246,18 @@ export function SprintDashboardPanel({
             onBack={() => setSelectedTicketId(null)}
             isAdmin={isAdmin}
           />
+        ) : ticketsQuery.isPending ? (
+          <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white p-8 text-gray-500">
+            <Loader2 className="size-8 animate-spin" aria-hidden />
+          </div>
+        ) : ticketsQuery.isError ? (
+          <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-dashed border-red-100 bg-white p-8 text-center text-sm text-red-600">
+            Could not load tickets.
+          </div>
+        ) : totalCount === 0 ? (
+          <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
+            {activeFilterCount > 0 ? "No tickets match your filters." : emptyMessage}
+          </div>
         ) : (
           <>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
@@ -405,7 +394,7 @@ export function SprintDashboardPanel({
                       <UserMultiSelect
                         value={[...assigneeFilter]}
                         onChange={(ids) => setAssigneeFilter(new Set(ids))}
-                        resolveUsers={assigneesInView}
+                        resolveUsers={projectUsersForFilter}
                         projectId={selectedProjectId}
                         placeholder="Search users..."
                         emptySearchHint="Type to search project members"
@@ -422,7 +411,7 @@ export function SprintDashboardPanel({
                       Total
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+                      <div className="text-2xl font-bold text-gray-900">{statsFromApi.total}</div>
                       <p className="text-sm text-gray-600">tickets</p>
                     </CardContent>
                   </Card>
@@ -431,7 +420,7 @@ export function SprintDashboardPanel({
                       Todo
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <div className="text-2xl font-bold text-gray-500">{stats.todo}</div>
+                      <div className="text-2xl font-bold text-gray-500">{statsFromApi.todo}</div>
                       <p className="text-sm text-gray-600">not started</p>
                     </CardContent>
                   </Card>
@@ -440,7 +429,7 @@ export function SprintDashboardPanel({
                       Done
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <div className="text-2xl font-bold text-green-600">{stats.done}</div>
+                      <div className="text-2xl font-bold text-green-600">{statsFromApi.done}</div>
                       <p className="text-sm text-gray-600">completed</p>
                     </CardContent>
                   </Card>
@@ -449,7 +438,7 @@ export function SprintDashboardPanel({
                       High priority
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <div className="text-2xl font-bold text-red-600">{stats.highPriority}</div>
+                      <div className="text-2xl font-bold text-red-600">{statsFromApi.high_priority}</div>
                       <p className="text-sm text-gray-600">need attention</p>
                     </CardContent>
                   </Card>
@@ -460,7 +449,9 @@ export function SprintDashboardPanel({
                 <section>
                   <h2 className="mb-3 text-sm font-semibold text-gray-800">
                     High priority{" "}
-                    <span className="font-normal text-gray-500">({highGroup.length})</span>
+                    <span className="font-normal text-gray-500">
+                      ({statsFromApi.high_priority})
+                    </span>
                   </h2>
                   <ul className="flex flex-col gap-2">
                     {highGroup.map((ticket) => (
@@ -481,7 +472,7 @@ export function SprintDashboardPanel({
                 <section>
                   <h2 className="mb-3 text-sm font-semibold text-gray-800">
                     Other{" "}
-                    <span className="font-normal text-gray-500">({otherGroup.length})</span>
+                    <span className="font-normal text-gray-500">({otherTotalLabel})</span>
                   </h2>
                   <ul className="flex flex-col gap-2">
                     {otherGroup.map((ticket) => (
@@ -498,11 +489,26 @@ export function SprintDashboardPanel({
                 </section>
               )}
 
-              {filteredTickets.length === 0 && ticketsForView.length > 0 && (
-                <p className="py-8 text-center text-sm text-gray-500">
-                  No tickets match your filters.
-                </p>
-              )}
+              {ticketsQuery.hasNextPage ? (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={ticketsQuery.isFetchingNextPage}
+                    onClick={() => void ticketsQuery.fetchNextPage()}
+                  >
+                    {ticketsQuery.isFetchingNextPage ? (
+                      <>
+                        <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                        Loading…
+                      </>
+                    ) : (
+                      `Load more (${allTickets.length} of ${totalCount})`
+                    )}
+                  </Button>
+                </div>
+              ) : null}
             </div>
               </div>
             </div>

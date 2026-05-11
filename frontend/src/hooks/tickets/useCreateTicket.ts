@@ -6,7 +6,7 @@ export const useCreateTicket = () => {
     return useMutation({
         mutationFn: createTicket,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["tickets"] })
+            queryClient.invalidateQueries({ queryKey: ["tickets", "board"] })
         }
     })  
 }

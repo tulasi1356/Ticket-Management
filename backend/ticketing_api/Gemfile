@@ -65,4 +65,7 @@ group :development, :test do
   # Background jobs (run Redis + `bundle exec sidekiq` in development)
   gem "sidekiq", "~> 7.3"
 
+  # for pagination
+  gem "pagy"
+
 end

@@ -8,7 +8,7 @@ export const useUpdateTicket = () => {
     mutationFn: ({ id, payload }: { id: number; payload: UpdateTicketPayload }) =>
       updateTicket(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tickets"] })
+      queryClient.invalidateQueries({ queryKey: ["tickets", "board"] })
     },
   })
 }

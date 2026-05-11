@@ -16,6 +16,65 @@ function IssueIcon({ issueType }: { issueType: string }) {
   return <ListTodo className="size-4 text-slate-500" aria-hidden />
 }
 
+function priorityBadge(priority: string) {
+  const p = priority.toLowerCase()
+  if (p === "low") {
+    return (
+      <Badge size="sm" variant="default">
+        Low
+      </Badge>
+    )
+  }
+  if (p === "medium") {
+    return (
+      <Badge size="sm" variant="warning">
+        Medium
+      </Badge>
+    )
+  }
+  if (!p.trim()) {
+    return null
+  }
+  return (
+    <Badge size="sm" variant="danger">
+      High
+    </Badge>
+  )
+}
+
+function statusBadge(status: string) {
+  const s = status.toLowerCase()
+  if (s === "todo") {
+    return (
+      <Badge size="sm" variant="default">
+        Todo
+      </Badge>
+    )
+  }
+  if (s === "in_progress") {
+    return (
+      <Badge size="sm" variant="warning">
+        In Progress
+      </Badge>
+    )
+  }
+  if (s === "test") {
+    return (
+      <Badge size="sm" variant="info">
+        Test
+      </Badge>
+    )
+  }
+  if (s === "done") {
+    return (
+      <Badge size="sm" variant="success">
+        Done
+      </Badge>
+    )
+  }
+  return null
+}
+
 export function TicketListItem({
   ticket,
   ticketKey,
@@ -32,7 +91,7 @@ export function TicketListItem({
       type="button"
       onClick={onSelect}
       className={cn(
-        "flex w-full cursor-pointer items-center gap-3 rounded-lg border bg-white px-3 py-2.5 text-left shadow-sm",
+        "grid w-full min-w-0 cursor-pointer grid-cols-[auto_auto_minmax(0,1fr)_5.75rem_9.5rem_auto] items-center gap-x-3 rounded-lg border bg-white px-3 py-2.5 text-left shadow-sm",
         "transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30",
         selected ? "border-blue-400 ring-1 ring-blue-100" : "border-gray-200"
       )}
@@ -49,55 +108,25 @@ export function TicketListItem({
 
       <span className="shrink-0 font-mono text-xs font-semibold text-gray-500">{ticketKey}</span>
 
-      <span className="min-w-0 flex-1 truncate font-medium text-gray-900">{ticket.title}</span>
+      <span className="min-w-0 truncate font-medium text-gray-900">{ticket.title}</span>
 
-      <div className="flex shrink-0 items-center gap-2">
-        <div>
-          {ticket.priority === "low" ? (
-            <Badge size="sm" variant="default">
-              Low
-            </Badge>
-          ) : ticket.priority === "medium" ? (
-            <Badge size="sm" variant="warning">
-              Medium
-            </Badge>
-          ) : (
-            <Badge size="sm" variant="danger">
-              High
-            </Badge>
-          )}
-        </div>
-        <div>
-          {ticket.status === "todo" ? (
-            <Badge size="sm" variant="default">
-              Todo
-            </Badge>
-          ) : ticket.status === "in_progress" ? (
-            <Badge size="sm" variant="warning">
-              In Progress
-            </Badge>
-          ) : ticket.status === "test" ? (
-            <Badge size="sm" variant="info">
-              Test
-            </Badge>
-          ) : ticket.status === "done" ? (
-            <Badge size="sm" variant="success">
-              Done
-            </Badge>
-          ) : null}
-        </div>
+      <div className="flex min-h-[1.75rem] items-center justify-start">{priorityBadge(ticket.priority)}</div>
+
+      <div className="flex min-h-[1.75rem] items-center justify-start">{statusBadge(ticket.status)}</div>
+
+      <div className="flex min-w-0 justify-self-end">
         {ticket.assignee ? (
           <Tooltip
             content={ticket.assignee.email?.trim() ? ticket.assignee.email : "No email on file"}
             side="top"
           >
-            <span className="flex min-w-0 max-w-[min(200px,28vw)] shrink-0 items-center gap-2 rounded-md px-1 py-0.5 text-left">
+            <span className="flex max-w-[min(200px,28vw)] items-center gap-2 rounded-md px-1 py-0.5 text-left">
               <AssigneeAvatar name={ticket.assignee.name} size="sm" className="ring-2 ring-white" />
               <span className="truncate text-sm font-medium text-gray-900">{ticket.assignee.name}</span>
             </span>
           </Tooltip>
         ) : (
-          <span className="flex shrink-0 items-center gap-2 text-sm text-gray-500">
+          <span className="flex items-center gap-2 text-sm text-gray-500">
             <AssigneeAvatar name="Unassigned" size="sm" />
             Unassigned
           </span>
