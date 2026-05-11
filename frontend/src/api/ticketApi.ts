@@ -1,25 +1,27 @@
 import { apiClient } from "./client"
 import type { BoardView, Ticket } from "../pages/ticketing/types"
 
-export const createTicket = (data: any) =>
+export const createTicket = (data: unknown) =>
   apiClient("/tickets", {
     method: "POST",
     body: JSON.stringify(data),
   })
 
+/** Pagination metadata (camelCase); normalized from Rails JSON. */
 export type TicketsBoardMeta = {
   page: number
-  per_page: number
+  perPage: number
   total: number
-  total_pages: number
-  has_more: boolean
+  totalPages: number
+  hasMore: boolean
 }
 
+/** Aggregates for the filtered set (camelCase); normalized from Rails JSON. */
 export type TicketsBoardStats = {
   total: number
   todo: number
   done: number
-  high_priority: number
+  highPriority: number
 }
 
 export type TicketsBoardResponse = {
@@ -28,17 +30,39 @@ export type TicketsBoardResponse = {
   stats: TicketsBoardStats
 }
 
-export type GetTicketsBoardArgs = {
-  project_id: number
-  board_view: BoardView
-  sprint_id?: number | null
+/** Client params (camelCase); mapped to Rails query keys in `getTicketsBoard`. */
+export type GetTicketsBoardParams = {
+  projectId: number
+  boardView: BoardView
+  sprintId?: number | null
   q?: string
   priorities?: string[]
   statuses?: string[]
-  assignee_ids?: number[]
-  date_from?: string
-  date_to?: string
+  assigneeIds?: number[]
+  dateFrom?: string
+  dateTo?: string
   page?: number
+}
+
+type TicketsBoardMetaRaw = {
+  page: number
+  per_page: number
+  total: number
+  total_pages: number
+  has_more: boolean
+}
+
+type TicketsBoardStatsRaw = {
+  total: number
+  todo: number
+  done: number
+  high_priority: number
+}
+
+type TicketsBoardResponseRaw = {
+  tickets: Ticket[]
+  meta: TicketsBoardMetaRaw
+  stats: TicketsBoardStatsRaw
 }
 
 function appendCsv(sp: URLSearchParams, key: string, values: string[]) {
@@ -51,25 +75,50 @@ function appendIds(sp: URLSearchParams, key: string, ids: number[]) {
   sp.set(key, ids.join(","))
 }
 
-/** Paginated, filtered board tickets (20 per page). */
-export async function getTicketsBoard(args: GetTicketsBoardArgs): Promise<TicketsBoardResponse> {
-  const sp = new URLSearchParams()
-  sp.set("project_id", String(args.project_id))
-  sp.set("board_view", args.board_view)
-  if (args.sprint_id != null && args.sprint_id > 0) {
-    sp.set("sprint_id", String(args.sprint_id))
+function normalizeBoardMeta(raw: TicketsBoardMetaRaw): TicketsBoardMeta {
+  return {
+    page: raw.page,
+    perPage: raw.per_page,
+    total: raw.total,
+    totalPages: raw.total_pages,
+    hasMore: raw.has_more,
   }
-  if (args.q?.trim()) sp.set("q", args.q.trim())
-  appendCsv(sp, "priorities", args.priorities ?? [])
-  appendCsv(sp, "statuses", args.statuses ?? [])
-  appendIds(sp, "assignee_ids", args.assignee_ids ?? [])
-  if (args.date_from) sp.set("date_from", args.date_from)
-  if (args.date_to) sp.set("date_to", args.date_to)
-  sp.set("page", String(args.page ?? 1))
+}
 
-  return apiClient<TicketsBoardResponse>(`/tickets?${sp.toString()}`, {
+function normalizeBoardStats(raw: TicketsBoardStatsRaw): TicketsBoardStats {
+  return {
+    total: raw.total,
+    todo: raw.todo,
+    done: raw.done,
+    highPriority: raw.high_priority,
+  }
+}
+
+/** Paginated, filtered board tickets (20 per page). */
+export async function getTicketsBoard(params: GetTicketsBoardParams): Promise<TicketsBoardResponse> {
+  const sp = new URLSearchParams()
+  sp.set("project_id", String(params.projectId))
+  sp.set("board_view", params.boardView)
+  if (params.sprintId != null && params.sprintId > 0) {
+    sp.set("sprint_id", String(params.sprintId))
+  }
+  if (params.q?.trim()) sp.set("q", params.q.trim())
+  appendCsv(sp, "priorities", params.priorities ?? [])
+  appendCsv(sp, "statuses", params.statuses ?? [])
+  appendIds(sp, "assignee_ids", params.assigneeIds ?? [])
+  if (params.dateFrom) sp.set("date_from", params.dateFrom)
+  if (params.dateTo) sp.set("date_to", params.dateTo)
+  sp.set("page", String(params.page ?? 1))
+
+  const raw = await apiClient<TicketsBoardResponseRaw>(`/tickets?${sp.toString()}`, {
     method: "GET",
   })
+
+  return {
+    tickets: raw.tickets,
+    meta: normalizeBoardMeta(raw.meta),
+    stats: normalizeBoardStats(raw.stats),
+  }
 }
 
 export type UpdateTicketPayload = {
@@ -92,12 +141,14 @@ export const updateTicket = (id: number, data: UpdateTicketPayload) =>
 
 export type TicketExportResponse = {
   message: string
-  job_id?: string
+  jobId?: string
 }
 
 /** Admin-only: queues a Sidekiq job that emails a full project / sprint / ticket export (CSV attached). */
-export const requestTicketExport = () =>
-  apiClient<TicketExportResponse>("/tickets/export", {
+export async function requestTicketExport(): Promise<TicketExportResponse> {
+  const raw = await apiClient<{ message: string; job_id?: string }>("/tickets/export", {
     method: "POST",
     body: JSON.stringify({}),
   })
+  return { message: raw.message, jobId: raw.job_id }
+}

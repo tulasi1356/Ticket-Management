@@ -48,19 +48,19 @@ export function useTicketsBoardInfinite(opts: {
     ],
     queryFn: ({ pageParam }) =>
       getTicketsBoard({
-        project_id: projectId!,
-        board_view: boardView,
-        sprint_id: boardView === "sprint" ? sprintId : undefined,
+        projectId: projectId!,
+        boardView,
+        sprintId: boardView === "sprint" ? sprintId : undefined,
         q: debouncedSearch.trim() || undefined,
         priorities: priorityFilter.size > 0 ? [...priorityFilter] : undefined,
         statuses: statusFilter.size > 0 ? [...statusFilter] : undefined,
-        assignee_ids: assigneeFilter.size > 0 ? [...assigneeFilter] : undefined,
-        date_from: dateFrom || undefined,
-        date_to: dateTo || undefined,
+        assigneeIds: assigneeFilter.size > 0 ? [...assigneeFilter] : undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
         page: pageParam as number,
       }),
     initialPageParam: 1,
-    getNextPageParam: (last) => (last.meta.has_more ? last.meta.page + 1 : undefined),
+    getNextPageParam: (last) => (last.meta.hasMore ? last.meta.page + 1 : undefined),
     enabled: canFetch,
   })
 }

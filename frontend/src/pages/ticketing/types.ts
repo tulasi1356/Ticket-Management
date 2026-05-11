@@ -1,3 +1,7 @@
+/**
+ * Ticketing domain types mirror Rails JSON keys (`snake_case`) for direct `fetch` / `as_json` use.
+ * Board list API wrappers normalize pagination `meta` / `stats` to camelCase in `ticketApi.ts`.
+ */
 export type ProjectUser = { id: number; name: string; email?: string; role?: string }
 
 export type Project = {

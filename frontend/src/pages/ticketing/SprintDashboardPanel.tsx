@@ -96,7 +96,7 @@ export function SprintDashboardPanel({
     total: 0,
     todo: 0,
     done: 0,
-    high_priority: 0,
+    highPriority: 0,
   }
 
   const selectedTicket = useMemo(() => {
@@ -130,7 +130,7 @@ export function SprintDashboardPanel({
     [allTickets]
   )
 
-  const otherTotalLabel = Math.max(0, statsFromApi.total - statsFromApi.high_priority)
+  const otherTotalLabel = Math.max(0, statsFromApi.total - statsFromApi.highPriority)
 
   const togglePriority = (priority: string) => {
     setPriorityFilter((prev) => {
@@ -438,7 +438,7 @@ export function SprintDashboardPanel({
                       High priority
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <div className="text-2xl font-bold text-red-600">{statsFromApi.high_priority}</div>
+                      <div className="text-2xl font-bold text-red-600">{statsFromApi.highPriority}</div>
                       <p className="text-sm text-gray-600">need attention</p>
                     </CardContent>
                   </Card>
@@ -450,7 +450,7 @@ export function SprintDashboardPanel({
                   <h2 className="mb-3 text-sm font-semibold text-gray-800">
                     High priority{" "}
                     <span className="font-normal text-gray-500">
-                      ({statsFromApi.high_priority})
+                      ({statsFromApi.highPriority})
                     </span>
                   </h2>
                   <ul className="flex flex-col gap-2">

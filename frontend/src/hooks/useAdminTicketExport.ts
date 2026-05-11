@@ -11,7 +11,7 @@ export function useAdminTicketExport() {
       const res = await requestTicketExport()
       const title = res.message ?? "Export queued."
       const lines = [
-        res.job_id ? `Job ID: ${res.job_id} (check Sidekiq / Redis if the email is slow).` : null,
+        res.jobId ? `Job ID: ${res.jobId} (check Sidekiq / Redis if the email is slow).` : null,
         "The email includes a CSV attachment: projects, sprints, tickets, and statuses.",
         import.meta.env.DEV
           ? "In dev, Rails often saves mail under tmp/mail (unless SMTP env vars are set)."
