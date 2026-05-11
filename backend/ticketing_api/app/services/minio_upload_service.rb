@@ -1,6 +1,9 @@
 class MinioUploadService
     def self.upload(file)
-      bucket = ENV['MINIO_BUCKET']
+      raise "MinIO is not configured (set MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_ENDPOINT)" if S3_RESOURCE.nil?
+
+      bucket = ENV["MINIO_BUCKET"].presence
+      raise "MINIO_BUCKET is not set" if bucket.blank?
   
       filename = "#{SecureRandom.uuid}_#{file.original_filename}"
   

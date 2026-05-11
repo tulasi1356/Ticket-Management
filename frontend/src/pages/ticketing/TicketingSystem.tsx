@@ -173,6 +173,7 @@ export function TicketingSystem() {
         projectDisplayName={selectedProject?.name ?? ""}
         boardView={boardView}
         resetFiltersKey={resetFiltersKey}
+        isAdmin={user.role === "admin"}
       />
     </div>
   )

@@ -6,6 +6,8 @@ class CreateTickets < ActiveRecord::Migration[8.1]
       t.integer :status
       t.integer :issue_type
       t.integer :priority
+      t.date :start_date
+      t.date :end_date
       t.references :project, null: false, foreign_key: true
       t.references :sprint, null: false, foreign_key: true
       t.references :assignee, null: false, foreign_key: { to_table: :users }

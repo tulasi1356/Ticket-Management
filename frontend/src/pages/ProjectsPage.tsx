@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "../components/ui/button"
 import {
   Table,
@@ -26,9 +26,8 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card"
-import { Badge } from "../components/ui/badge"
-import { searchUsers } from "../api/userApi"
-import { Check, DeleteIcon, EditIcon, Search, X } from "lucide-react"
+import { UserMultiSelect } from "../components/UserMultiSelect"
+import { DeleteIcon, EditIcon, Eye } from "lucide-react"
 import { assignUsersToProject } from "../api/projectApi"
 import { useEditProject } from "../hooks/projects/useEditProject"
 import { useGetProject } from "../hooks/projects/useGetProject"
@@ -56,132 +55,6 @@ function CreateProjectForm({ isEdit = false }: { isEdit?: boolean, project?: Pro
 }
 
 type BasicUser = { id: number; name: string; email?: string }
-
-function UserMultiSelect({
-    value,
-    onChange,
-    allUsers,
-    placeholder = "Search users...",
-}: {
-    value: number[]
-    onChange: (next: number[]) => void
-    allUsers: BasicUser[]
-    placeholder?: string
-}) {
-    const [query, setQuery] = useState("")
-    const [results, setResults] = useState<BasicUser[]>([])
-    const [loading, setLoading] = useState(false)
-
-    useEffect(() => {
-        let cancelled = false
-        const trimmed = query.trim()
-
-        if (!trimmed) {
-            setResults(allUsers.slice(0, 10))
-            return
-        }
-
-        const timer = setTimeout(async () => {
-            setLoading(true)
-            try {
-                const data = await searchUsers(trimmed)
-                if (!cancelled) setResults(data)
-            } catch (e) {
-                console.error("User search failed:", e)
-                if (!cancelled) setResults([])
-            } finally {
-                if (!cancelled) setLoading(false)
-            }
-        }, 250)
-
-        return () => {
-            cancelled = true
-            clearTimeout(timer)
-        }
-    }, [query, allUsers])
-
-    const selectedUsers = useMemo(() => {
-        const byId = new Map(allUsers.map((u) => [u.id, u]))
-        return value.map((id) => byId.get(id)).filter(Boolean) as BasicUser[]
-    }, [allUsers, value])
-
-    const toggle = (id: number) => {
-        if (value.includes(id)) onChange(value.filter((x) => x !== id))
-        else onChange([...value, id])
-    }
-
-    return (
-        <div className="flex flex-col gap-2">
-            {selectedUsers.length ? (
-                <div className="flex flex-wrap gap-2">
-                    {selectedUsers.map((u) => (
-                        <Badge key={u.id} variant="info" className="gap-1">
-                            <span className="max-w-[180px] truncate">{u.name}</span>
-                            <button
-                                id = "remove-user-button"
-                                type="button"
-                                className="ml-1 rounded p-0.5 hover:bg-blue-200"
-                                onClick={() => toggle(u.id)}
-                                aria-label={`Remove ${u.name}`}
-                            >
-                                <X className="h-3 w-3" />
-                            </button>
-                        </Badge>
-                    ))}
-                </div>
-            ) : null}
-
-            <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder={placeholder}
-                    className="pl-9"
-                />
-            </div>
-
-            <div className="max-h-56 overflow-y-auto rounded-md border bg-white">
-                {loading ? (
-                    <div className="px-3 py-2 text-sm text-gray-500">Searching...</div>
-                ) : results.length ? (
-                    results.map((u) => {
-                        const checked = value.includes(u.id)
-                        return (
-                            <button
-                                id = "select-user-button"
-                                aria-label={`Select ${u.name}`}
-                                key={u.id}
-                                type="button"
-                                onClick={() => toggle(u.id)}
-                                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-gray-50"
-                            >
-                                <div className="min-w-0">
-                                    <div className="truncate font-medium text-gray-900">{u.name}</div>
-                                    {u.email ? (
-                                        <div className="truncate text-xs text-gray-500">{u.email}</div>
-                                    ) : null}
-                                </div>
-                                <span
-                                    className={
-                                        "flex h-5 w-5 items-center justify-center rounded border " +
-                                        (checked
-                                            ? "border-blue-600 bg-blue-600 text-white"
-                                            : "border-gray-300 bg-white text-transparent")
-                                    }
-                                >
-                                    <Check className="h-3.5 w-3.5" />
-                                </span>
-                            </button>
-                        )
-                    })
-                ) : (
-                    <div className="px-3 py-2 text-sm text-gray-500">No users found.</div>
-                )}
-            </div>
-        </div>
-    )
-}
 
 type CreateOrEditProjectProps = {
     isEdit?: boolean
@@ -211,7 +84,7 @@ export function CreateOrEditProject({ isEdit = false, projectId, onClose }: Crea
         if (!isEdit || !open) return
         if (!project) return
 
-        const selectedIds = (project.users ?? []).map((u) => u.id)
+        const selectedIds = (project.users ?? []).map((u: BasicUser) => u.id)
         methods.reset({
             name: project.name ?? "",
             description: project.description ?? "",
@@ -266,7 +139,7 @@ export function CreateOrEditProject({ isEdit = false, projectId, onClose }: Crea
                     {
                         isEdit ?  <button type="button" id = "edit-project-button" aria-label="Edit project" onClick={() => setOpen(true)}>
                             <EditIcon id = "edit-project-button" onClick={() => setOpen(true)} className="size-4 cursor-pointer" />
-                            </button> :  <Button id = "create-project-button" aria-label="Create project" onClick={() => setOpen(true)}>Create Project</Button>
+                            </button> :  <Button id = "create-project-button" aria-label="Create project" size="md" variant="primary" onClick={() => setOpen(true)}>Create Project</Button>
                     }
                    
                 </PopoverTrigger>
@@ -279,7 +152,8 @@ export function CreateOrEditProject({ isEdit = false, projectId, onClose }: Crea
                                 <UserMultiSelect
                                     value={createSelectedUserIds}
                                     onChange={setCreateSelectedUserIds}
-                                    allUsers={(users ?? []) as BasicUser[]}
+                                    browseWhenEmpty={(users ?? []) as BasicUser[]}
+                                    resolveUsers={(users ?? []) as BasicUser[]}
                                     placeholder="Search and select users..."
                                 />
                             </div>
@@ -323,23 +197,35 @@ export default function AllProjects() {
 
     if (!user) {
         return (
-            <div className="flex min-h-[calc(100vh-57px)] items-center justify-center bg-gray-50 p-6">
-                <Card className="w-full max-w-xl">
-                    <CardHeader>
-                        <CardTitle>Projects</CardTitle>
-                        <CardDescription>
-                            You must be logged in to view this page.
-                        </CardDescription>
-                    </CardHeader>
-                </Card>
+            <div className="flex min-h-[calc(100vh-57px)] w-full flex-col bg-gray-50/80">
+                <header className="border-b border-gray-200 bg-white px-6 py-4">
+                    <p className="text-xs text-gray-500">Projects</p>
+                    <h1 className="text-lg font-semibold text-gray-900">Projects</h1>
+                </header>
+                <div className="flex flex-1 items-center justify-center px-6 py-6">
+                    <Card className="w-full max-w-xl">
+                        <CardHeader>
+                            <CardTitle>Sign in required</CardTitle>
+                            <CardDescription>
+                                You must be logged in to view this page.
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
+                </div>
             </div>
         )
     }
 
     if (isLoading || (isAdmin && isuserdataLoading)) {
         return (
-            <div className="flex min-h-[calc(100vh-57px)] items-center justify-center bg-gray-50 p-6 text-gray-500">
-                Loading...
+            <div className="flex min-h-[calc(100vh-57px)] w-full flex-col bg-gray-50/80">
+                <header className="border-b border-gray-200 bg-white px-6 py-4">
+                    <p className="text-xs text-gray-500">Projects</p>
+                    <h1 className="text-lg font-semibold text-gray-900">Projects</h1>
+                </header>
+                <div className="flex flex-1 items-center justify-center px-6 py-6 text-sm text-gray-500">
+                    Loading...
+                </div>
             </div>
         )
     }
@@ -347,9 +233,15 @@ export default function AllProjects() {
     if (error) {
         console.error("Error fetching projects:", error)
         return (
-            <div className="flex min-h-[calc(100vh-57px)] items-center justify-center bg-gray-50 p-6">
-                <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    Could not load projects.
+            <div className="flex min-h-[calc(100vh-57px)] w-full flex-col bg-gray-50/80">
+                <header className="border-b border-gray-200 bg-white px-6 py-4">
+                    <p className="text-xs text-gray-500">Projects</p>
+                    <h1 className="text-lg font-semibold text-gray-900">Projects</h1>
+                </header>
+                <div className="flex flex-1 items-center justify-center px-6 py-6">
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        Could not load projects.
+                    </div>
                 </div>
             </div>
         )
@@ -358,47 +250,67 @@ export default function AllProjects() {
     if (isAdmin && erroruser) {
         console.error("Error fetching users:", erroruser)
         return (
-            <div className="flex min-h-[calc(100vh-57px)] items-center justify-center bg-gray-50 p-6">
-                <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    Could not load users.
+            <div className="flex min-h-[calc(100vh-57px)] w-full flex-col bg-gray-50/80">
+                <header className="border-b border-gray-200 bg-white px-6 py-4">
+                    <p className="text-xs text-gray-500">Projects</p>
+                    <h1 className="text-lg font-semibold text-gray-900">Projects</h1>
+                </header>
+                <div className="flex flex-1 items-center justify-center px-6 py-6">
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        Could not load users.
+                    </div>
                 </div>
             </div>
         )
     }
 
     return (
-        <div className="min-h-[calc(100vh-57px)] w-full bg-gray-50 p-6">
-            <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h1 className="text-2xl font-semibold text-gray-900">Projects</h1>
-                        <p className="text-sm text-gray-600">
-                            {isAdmin ? "Create projects and manage team access." : "View your projects."}
-                        </p>
-                    </div>
-                    {isAdmin ? (
-                        <CreateOrEditProject isEdit={false} onClose={() => {}} />
-                    ) : 
-                    null
-                    }
+        <div className="flex min-h-[calc(100vh-57px)] w-full flex-col bg-gray-50/80">
+            <header className="flex shrink-0 flex-wrap items-start justify-between gap-4 border-b border-gray-200 bg-white px-6 py-4">
+                <div>
+                    <p className="text-xs text-gray-500">Projects</p>
+                    <h1 className="text-lg font-semibold text-gray-900">Projects</h1>
+                    <p className="mt-0.5 text-sm text-gray-600">
+                        {isAdmin ? "Create projects and manage team access." : "View your projects."}
+                    </p>
                 </div>
+                {isAdmin ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <CreateOrEditProject isEdit={false} onClose={() => {}} />
+                    </div>
+                ) : null}
+            </header>
 
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+                <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>{isAdmin ? "All projects" : "My projects"}</CardTitle>
+                    <CardHeader className="border-b border-gray-100 pb-4">
+                        <CardTitle className="text-base font-semibold text-gray-900">
+                            {isAdmin ? "All projects" : "My projects"}
+                        </CardTitle>
                         <CardDescription>
                             {isAdmin ? "View existing projects and assign users." : "Projects you have access to."}
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-4">
                         {data && data.length > 0 ? (
-                            <Table>
+                            <Table size="sm">
                                 <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Name</TableHead>
-                                        <TableHead>Description</TableHead>
-                                        {isAdmin ? <TableHead>Assign Users</TableHead> : null}
-                                        <TableHead>Actions</TableHead>
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                            Name
+                                        </TableHead>
+                                        <TableHead className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                            Description
+                                        </TableHead>
+                                        {isAdmin ? (
+                                            <TableHead className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                                Assign users
+                                            </TableHead>
+                                        ) : null}
+                                        <TableHead className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                            Actions
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -439,8 +351,10 @@ export default function AllProjects() {
                                                             >
                                                                 <Input
                                                                     readOnly
+                                                                    size="sm"
                                                                     type="text"
                                                                     placeholder="Assign users..."
+                                                                    className="rounded-lg border-gray-200 bg-gray-50 text-sm focus:bg-white"
                                                                     value={
                                                                         assignUsersProjectId === project.id
                                                                             ? assignSelectedUserIds.length
@@ -461,7 +375,8 @@ export default function AllProjects() {
                                                                 <UserMultiSelect
                                                                     value={assignSelectedUserIds}
                                                                     onChange={setAssignSelectedUserIds}
-                                                                    allUsers={(users ?? []) as BasicUser[]}
+                                                                    browseWhenEmpty={(users ?? []) as BasicUser[]}
+                                                                    resolveUsers={(users ?? []) as BasicUser[]}
                                                                     placeholder="Search users..."
                                                                 />
                                                                 <div className="flex justify-end gap-2 pt-1">
@@ -502,17 +417,32 @@ export default function AllProjects() {
                                                     </Popover>
                                                 </TableCell>
                                             ) : null}
-                                            <TableCell className="flex gap-2 mt-3">
+                                            <TableCell>
                                                 {isAdmin ? (
                                                     <div className="flex items-center gap-2">
                                                         <CreateOrEditProject isEdit={true} projectId={project.id} onClose={() => setAssignUsersProjectId(null)} />
                                                         <button type="button" id = "delete-project-button" aria-label="Delete project" onClick={() => handleDeleteProject(project.id)}>
-                                                            <DeleteIcon id = "delete-project-button" onClick={() => handleDeleteProject(project.id)} className="size-4 cursor-pointer" />
+                                                            <DeleteIcon id = "delete-project-button" onClick={() => handleDeleteProject(project.id)} className="size-4 cursor-pointer text-gray-500 hover:text-gray-800" />
                                                         </button>
                                                     </div>
-                                                ) : 
-                                                <Button id = "view-updates-button" onClick={() => router.navigate({ to: "/add_sprint" })}>View Updates</Button>
-                                                }
+                                                ) : (
+                                                    <Button
+                                                        id="view-board-button"
+                                                        aria-label="View board"
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        className="gap-1.5 border border-gray-200 bg-white text-gray-700 shadow-none hover:bg-gray-50"
+                                                        onClick={() =>
+                                                            router.navigate({
+                                                                to: "/ticketing_system",
+                                                                search: { projectId: project.id },
+                                                            })
+                                                        }
+                                                    >
+                                                        <Eye className="size-4" />
+                                                        View board
+                                                    </Button>
+                                                )}
                                             </TableCell> 
                                         </TableRow>
                                     )
@@ -520,12 +450,13 @@ export default function AllProjects() {
                                 </TableBody>
                             </Table>
                         ) : (
-                            <div className="flex min-h-[120px] items-center justify-center text-sm text-gray-600">
+                            <div className="flex min-h-[160px] items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50/50 text-center text-sm text-gray-500">
                                 No projects found.
                             </div>
                         )}
                     </CardContent>
                 </Card>
+                </div>
             </div>
         </div>
 

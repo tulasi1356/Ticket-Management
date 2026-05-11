@@ -10,7 +10,18 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_06_103805) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_09_120001) do
+  create_table "comments", force: :cascade do |t|
+    t.json "attachment_urls", default: []
+    t.datetime "created_at", null: false
+    t.text "message"
+    t.integer "ticket_id", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["ticket_id"], name: "index_comments_on_ticket_id"
+    t.index ["user_id"], name: "index_comments_on_user_id"
+  end
+
   create_table "project_users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "project_id", null: false
@@ -40,12 +51,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_06_103805) do
 
   create_table "tickets", force: :cascade do |t|
     t.integer "assignee_id", null: false
+    t.json "attachment_urls", default: []
     t.datetime "created_at", null: false
     t.text "description"
+    t.date "end_date"
     t.integer "issue_type"
     t.integer "priority"
     t.integer "project_id", null: false
     t.integer "sprint_id", null: false
+    t.date "start_date"
     t.integer "status"
     t.string "title"
     t.datetime "updated_at", null: false
@@ -63,6 +77,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_06_103805) do
     t.datetime "updated_at", null: false
   end
 
+  add_foreign_key "comments", "tickets"
+  add_foreign_key "comments", "users"
   add_foreign_key "project_users", "projects"
   add_foreign_key "project_users", "users"
   add_foreign_key "sprints", "projects"

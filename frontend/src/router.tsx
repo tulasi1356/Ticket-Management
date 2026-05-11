@@ -11,10 +11,9 @@ import Home from './pages/HomePage'
 import SignUp from './pages/SignUpPage'
 import Login from './pages/LoginPage'
 import { useAuthStore } from './stores/authStore'
-import Dashboard from './pages/DashboardPage'
 import AllProjects from './pages/ProjectsPage'
 import { TicketingSystem } from './pages/ticketing/TicketingSystem'
-import { Navbar } from './components/Navbar'
+import { Navbar } from './components/navbar'
 
 const rootRoute = createRootRoute({
     component: RootLayout,
@@ -33,12 +32,9 @@ const rootRoute = createRootRoute({
     
         // 🚫 Logged in → block login/signup
         if (user && isAuthPage) {
-          throw redirect({ to: "/dashboard" })
+          throw redirect({ to: "/ticketing_system" })
         }
 
-        // if (user?.role != "admin" && path == "/all_users") {
-        //     throw redirect({ to: "/dashboard" })
-        // }
       },
 })
 
@@ -47,9 +43,18 @@ const rootRoute = createRootRoute({
 
 function RootLayout() {
     return (
-        <div >
+        <div>
+            <a className="skip-to-main" href="#main-content">
+                Skip to main content
+            </a>
             <Navbar />
-            <Outlet />
+            <main
+                id="main-content"
+                tabIndex={-1}
+                className="outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[color:var(--app-focus-ring-color)]"
+            >
+                <Outlet />
+            </main>
         </div>
     )
 }
@@ -78,12 +83,6 @@ const allUsersRoute = createRoute({
     component: AllUsers,
 })
 
-const dashboardRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/dashboard',
-    component: Dashboard,
-})
-
 const allProjectsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/all_projects',
@@ -102,7 +101,6 @@ const routeTree = rootRoute.addChildren([
     loginRoute,
     signUpRoute,
     allUsersRoute,  
-    dashboardRoute,
     allProjectsRoute,
     ticketingSystemRoute
 ])

@@ -87,7 +87,7 @@ export default function SignUp() {
                 password: data.password,
             })
             setUser(newUser)
-            navigate({ to: "/dashboard" })
+            navigate({ to: "/ticketing_system" })
         } catch (error) {
             console.error("Error signing up:", error)
             setSubmitError("Could not create your account. Please try again.")

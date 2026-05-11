@@ -29,14 +29,34 @@ Rails.application.configure do
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
 
-  # Don't care if the mailer can't send.
-  config.action_mailer.raise_delivery_errors = false
+  config.action_mailer.raise_delivery_errors = true
+  config.action_mailer.perform_deliveries = true
 
   # Make template changes take effect immediately.
   config.action_mailer.perform_caching = false
 
   # Set localhost to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
+
+  # Sidekiq needs Redis running locally (`redis-server` or Docker).
+  config.active_job.queue_adapter = :sidekiq
+
+  # SendGrid: set SENDGRID_API_KEY + SENDGRID_FROM_EMAIL in .env (see .env.example).
+  if ENV["SENDGRID_API_KEY"].present?
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.smtp_settings = {
+      address: "smtp.sendgrid.net",
+      port: 587,
+      domain: ENV.fetch("MAILER_DOMAIN", "localhost"),
+      user_name: "apikey",
+      password: ENV.fetch("SENDGRID_API_KEY"),
+      authentication: :plain,
+      enable_starttls_auto: true
+    }
+  else
+    config.action_mailer.delivery_method = :file
+    config.action_mailer.file_settings = { location: Rails.root.join("tmp/mail") }
+  end
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log

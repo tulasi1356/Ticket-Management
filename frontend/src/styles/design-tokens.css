@@ -1,0 +1,80 @@
+/**
+ * Design tokens — single source for fonts and colors.
+ *
+ * - Palette vars (--palette-*) feed Tailwind via @theme in index.css.
+ * - Semantic vars (--app-*) are for custom CSS or gradual adoption outside Tailwind.
+ * - Focus / link tokens (--app-focus-*, --app-link-*) support keyboard and contrast needs.
+ * Edit values here to retune the whole UI.
+ */
+
+:root {
+  /* ─── Typography ─── */
+  --font-family-sans: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+
+  /* ─── Neutral palette (Tailwind-aligned gray scale) ─── */
+  --palette-gray-50: #f9fafb;
+  --palette-gray-100: #f3f4f6;
+  --palette-gray-200: #e5e7eb;
+  --palette-gray-300: #d1d5db;
+  --palette-gray-400: #9ca3af;
+  --palette-gray-500: #6b7280;
+  --palette-gray-600: #4b5563;
+  --palette-gray-700: #374151;
+  --palette-gray-800: #1f2937;
+  --palette-gray-900: #111827;
+  --palette-gray-950: #030712;
+
+  /* ─── Brand / actions ─── */
+  --palette-blue-400: #60a5fa;
+  --palette-blue-500: #3b82f6;
+  --palette-blue-600: #2563eb;
+
+  /* ─── Feedback ─── */
+  --palette-red-50: #fef2f2;
+  --palette-red-200: #fecaca;
+  --palette-red-500: #ef4444;
+  --palette-red-600: #dc2626;
+  --palette-red-700: #b91c1c;
+
+  --palette-emerald-50: #ecfdf5;
+  --palette-emerald-700: #047857;
+
+  --palette-amber-50: #fffbeb;
+  --palette-amber-800: #92400e;
+
+  /* ─── Semantic aliases (plain CSS: color: var(--app-fg-muted)) ─── */
+  --app-bg-page: var(--palette-gray-50);
+  --app-bg-page-muted: rgb(249 250 251 / 0.8);
+  --app-bg-surface: #ffffff;
+  /* Default inherited body copy (explicit slate tint; Tailwind text-gray-900 stays on palette) */
+  --app-fg-default: #213547;
+  --app-fg-muted: var(--palette-gray-600);
+  --app-fg-subtle: var(--palette-gray-500);
+  --app-border: var(--palette-gray-200);
+  --app-border-subtle: var(--palette-gray-100);
+  --app-primary: var(--palette-blue-500);
+  --app-primary-hover: var(--palette-blue-600);
+
+  /* ─── Accessibility ───
+     Focus ring: high contrast on both light surfaces and primary buttons. */
+  --app-focus-ring-color: var(--palette-blue-600);
+  --app-focus-ring-width: 2px;
+  --app-focus-ring-offset: 2px;
+  --app-focus-ring-on-primary: #ffffff;
+
+  /* Default link style when not using a component (inherits better contrast than gray alone) */
+  --app-link-color: var(--palette-blue-600);
+  --app-link-hover-color: var(--palette-blue-600);
+
+  /* Global defaults (inherit everywhere unless overridden) */
+  font-family: var(--font-family-sans);
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--app-fg-default);
+  background-color: var(--app-bg-page);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

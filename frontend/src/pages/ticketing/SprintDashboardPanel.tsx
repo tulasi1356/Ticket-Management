@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from "react"
-import { Search } from "lucide-react"
+import { Download, Loader2, Search } from "lucide-react"
 import { CreateTicket } from "../../components/createTicket"
 import { TicketDetailPanel } from "./TicketDetailPanel"
 import { TicketListItem } from "./TicketListItem"
 import type { BoardView, Project, Sprint, Ticket } from "./types"
 import { computeTicketStats, formatTicketKey } from "./utils"
 import { Badge } from "../../components/ui/badge"
-import { Card, CardContent, CardHeader } from "../../components/ui/card"
-import { AssigneeAvatar } from "../../components/ui/avatar"
-import { Tooltip } from "../../components/ui/tooltip"
+import { Button } from "../../components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card"
+import { Input } from "../../components/ui/input"
+import { UserMultiSelect } from "../../components/UserMultiSelect"
+import { useAdminTicketExport } from "../../hooks/useAdminTicketExport"
+import { cn } from "../../lib/utils"
 
 type SprintDashboardPanelProps = {
   selectedProject: Project | undefined
@@ -20,30 +23,59 @@ type SprintDashboardPanelProps = {
   projectDisplayName: string
   boardView: BoardView
   resetFiltersKey: string
+  isAdmin?: boolean
 }
 
-const PRIORITIES = ["high", "medium", "low"]
+const PRIORITIES = ["high", "medium", "low"] as const
+
+const STATUSES = [
+  { value: "todo", label: "Todo" },
+  { value: "in_progress", label: "In progress" },
+  { value: "test", label: "Test" },
+  { value: "done", label: "Done" },
+] as const
+
+function ticketOverlapsDateRange(
+  ticket: Ticket,
+  rangeStart: string,
+  rangeEnd: string
+): boolean {
+  const ts = ticket.start_date
+  const te = ticket.end_date
+  if (!ts || !te) return false
+  const from = rangeStart || "0000-01-01"
+  const to = rangeEnd || "9999-12-31"
+  return !(te < from || ts > to)
+}
 
 export function SprintDashboardPanel({
   selectedProject,
   selectedSprint,
   selectedProjectId,
   selectedSprintId,
-  sprintsForProject,
+  sprintsForProject: _sprintsForProject,
   ticketsForView,
   projectDisplayName,
   boardView,
   resetFiltersKey,
+  isAdmin = false,
 }: SprintDashboardPanelProps) {
   const [search, setSearch] = useState("")
   const [priorityFilter, setPriorityFilter] = useState<Set<string>>(new Set())
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set())
   const [assigneeFilter, setAssigneeFilter] = useState<Set<number>>(new Set())
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null)
+  const { busy: exportBusy, run: runAdminExport } = useAdminTicketExport()
 
   useEffect(() => {
     setSearch("")
     setPriorityFilter(new Set())
+    setStatusFilter(new Set())
     setAssigneeFilter(new Set())
+    setDateFrom("")
+    setDateTo("")
     setSelectedTicketId(null)
   }, [resetFiltersKey])
 
@@ -62,11 +94,18 @@ export function SprintDashboardPanel({
   const stats = useMemo(() => computeTicketStats(ticketsForView), [ticketsForView])
 
   const assigneesInView = useMemo(() => {
-    const map = new Map<number, string>()
+    const map = new Map<number, { name: string; email?: string }>()
     for (const t of ticketsForView) {
-      if (t.assignee?.id != null) map.set(t.assignee.id, t.assignee.name)
+      if (t.assignee?.id != null) {
+        map.set(t.assignee.id, {
+          name: t.assignee.name,
+          email: t.assignee.email,
+        })
+      }
     }
-    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]))
+    return [...map.entries()]
+      .sort((a, b) => a[1].name.localeCompare(b[1].name))
+      .map(([id, u]) => ({ id, ...u }))
   }, [ticketsForView])
 
   const filteredTickets = useMemo(() => {
@@ -76,10 +115,18 @@ export function SprintDashboardPanel({
       list = list.filter((t) => priorityFilter.has(t.priority))
     }
 
+    if (statusFilter.size > 0) {
+      list = list.filter((t) => statusFilter.has(t.status))
+    }
+
     if (assigneeFilter.size > 0) {
       list = list.filter(
         (t) => t.assignee?.id != null && assigneeFilter.has(t.assignee.id)
       )
+    }
+
+    if (dateFrom || dateTo) {
+      list = list.filter((t) => ticketOverlapsDateRange(t, dateFrom, dateTo))
     }
 
     const q = search.trim().toLowerCase()
@@ -88,7 +135,15 @@ export function SprintDashboardPanel({
     }
 
     return list
-  }, [ticketsForView, priorityFilter, assigneeFilter, search])
+  }, [
+    ticketsForView,
+    priorityFilter,
+    statusFilter,
+    assigneeFilter,
+    dateFrom,
+    dateTo,
+    search,
+  ])
 
   const highGroup = useMemo(
     () => filteredTickets.filter((t) => t.priority === "high"),
@@ -99,15 +154,6 @@ export function SprintDashboardPanel({
     [filteredTickets]
   )
 
-  const toggleAssignee = (id: number) => {
-    setAssigneeFilter((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
   const togglePriority = (priority: string) => {
     setPriorityFilter((prev) => {
       const next = new Set(prev)
@@ -116,6 +162,32 @@ export function SprintDashboardPanel({
       return next
     })
   }
+
+  const toggleStatus = (status: string) => {
+    setStatusFilter((prev) => {
+      const next = new Set(prev)
+      if (next.has(status)) next.delete(status)
+      else next.add(status)
+      return next
+    })
+  }
+
+  const clearSidebarFilters = () => {
+    setSearch("")
+    setPriorityFilter(new Set())
+    setStatusFilter(new Set())
+    setAssigneeFilter(new Set())
+    setDateFrom("")
+    setDateTo("")
+  }
+
+  const activeFilterCount =
+    priorityFilter.size +
+    statusFilter.size +
+    assigneeFilter.size +
+    (dateFrom ? 1 : 0) +
+    (dateTo ? 1 : 0) +
+    (search.trim() ? 1 : 0)
 
   const breadcrumb =
     selectedProject && selectedSprint
@@ -146,6 +218,27 @@ export function SprintDashboardPanel({
           <h1 className="text-lg font-semibold text-gray-900">{breadcrumb}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {isAdmin && selectedProjectId ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={exportBusy}
+              onClick={() => void runAdminExport()}
+            >
+              {exportBusy ? (
+                <>
+                  <Loader2 className="mr-1 size-4 animate-spin" aria-hidden />
+                  Export…
+                </>
+              ) : (
+                <>
+                  <Download className="mr-1 size-4" aria-hidden />
+                  Export
+                </>
+              )}
+            </Button>
+          ) : null}
           {selectedProject && selectedSprint && (
             <CreateTicket
               projectId={selectedProject.id}
@@ -172,87 +265,195 @@ export function SprintDashboardPanel({
             ticketKey={formatTicketKey(projectDisplayName, selectedTicket.id)}
             projectName={selectedProject?.name}
             sprintName={selectedSprint?.name}
+            projectUsers={selectedProject?.users}
             onBack={() => setSelectedTicketId(null)}
+            isAdmin={isAdmin}
           />
         ) : (
           <>
-            <div className="flex flex-row justify-between gap-4 mb-6">
-              <Card className="w-1/3">
-                <CardHeader className="text-gray-500 text-xs font-medium uppercase tracking-wide">TOTAL</CardHeader>
-                <CardContent >
-                  <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-                  <p className="text-sm text-gray-600">tickets</p>
-                </CardContent>
-              </Card>
-              <Card className="w-1/3">
-                <CardHeader className="text-gray-500 text-xs font-medium uppercase tracking-wide">TODO</CardHeader>
-                <CardContent >
-                  <div className="text-2xl font-bold text-gray-500">{stats.todo}</div>
-                  <p className="text-sm text-gray-600">not started</p>
-                </CardContent>
-              </Card>
-              <Card className="w-1/3">
-                <CardHeader className="text-gray-500 text-xs font-medium uppercase tracking-wide">DONE</CardHeader>
-                <CardContent >
-                  <div className="text-2xl font-bold text-green-600">{stats.done}</div>
-                  <p className="text-sm text-gray-600">completed</p>
-                </CardContent>
-              </Card>
-              <Card className="w-1/3">
-                <CardHeader className="text-gray-500 text-xs font-medium uppercase tracking-wide">HIGH PRIORITY</CardHeader>
-                <CardContent >
-                  <div className="text-2xl font-bold text-red-600">{stats.highPriority}</div>
-                  <p className="text-sm text-gray-600">need attention</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="mb-6 flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium text-gray-500">Priority</span>
-                {PRIORITIES.map((p) => {
-                  return <button id = "priority-button" aria-label={`Priority ${p}`} key={p} onClick={() => togglePriority(p)}>
-                    <Badge size="xs" variant={p === "high" ? "danger" : p === "medium" ? "warning" : "default"}>{p.charAt(0).toUpperCase() + p.slice(1)}</Badge>
-                  </button>
-                })}
-              </div>
-
-              {assigneesInView.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-medium text-gray-500">Assignee</span>
-                  <div className="flex items-center -space-x-2">
-                    {assigneesInView.map(([id, name]) => (
-                      <Tooltip key={id} content={name}>
-                        <button
-                          id = "assignee-button"
-                          aria-label={`Assignee ${name}`}
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+              <aside className="w-full shrink-0 lg:sticky lg:top-4 lg:w-[280px] lg:self-start">
+                <Card className="border-gray-200 shadow-sm">
+                  <CardHeader className="space-y-1 border-b border-gray-100 pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <CardTitle className="text-base">Filters</CardTitle>
+                        <CardDescription className="text-xs">
+                          Narrow the ticket list
+                        </CardDescription>
+                      </div>
+                      {activeFilterCount > 0 ? (
+                        <Button
                           type="button"
-                          onClick={() => toggleAssignee(id)}
-                          className="relative rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                          variant="secondary"
+                          size="sm"
+                          className="shrink-0 text-xs"
+                          onClick={clearSidebarFilters}
                         >
-                          <AssigneeAvatar
-                            name={name}
-                            size="sm"
-                            className="ring-2 ring-white hover:z-10"
-                          />
-                        </button>
-                      </Tooltip>
-                    ))}
-                  </div>
-                </div>
-              )}
+                          Clear ({activeFilterCount})
+                        </Button>
+                      ) : null}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-5 pt-4">
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Search
+                      </p>
+                      <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+                        <Input
+                          type="search"
+                          size="sm"
+                          placeholder="Search tickets..."
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
+                          className="w-full pl-9"
+                          aria-label="Search tickets"
+                        />
+                      </div>
+                    </div>
 
-              <div className="relative min-w-[200px] flex-1 lg:max-w-xs lg:flex-none">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="search"
-                  placeholder="Search tickets..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm outline-none ring-blue-500/20 focus:border-blue-400 focus:bg-white focus:ring-2"
-                />
-              </div>
-            </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Dates
+                      </p>
+                      <p className="text-[11px] leading-snug text-gray-400">
+                        Tickets whose start/end range overlaps this window (needs dates on the ticket).
+                      </p>
+                      <div className="grid gap-2">
+                        <label className="grid gap-1">
+                          <span className="text-xs text-gray-600">From</span>
+                          <Input
+                            type="date"
+                            size="sm"
+                            value={dateFrom}
+                            onChange={(e) => setDateFrom(e.target.value)}
+                          />
+                        </label>
+                        <label className="grid gap-1">
+                          <span className="text-xs text-gray-600">To</span>
+                          <Input
+                            type="date"
+                            size="sm"
+                            value={dateTo}
+                            onChange={(e) => setDateTo(e.target.value)}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Status
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {STATUSES.map((s) => (
+                          <button
+                            key={s.value}
+                            type="button"
+                            aria-label={`Filter status ${s.label}`}
+                            aria-pressed={statusFilter.has(s.value)}
+                            onClick={() => toggleStatus(s.value)}
+                            className={cn(
+                              "rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40",
+                              statusFilter.has(s.value) && "ring-2 ring-blue-500 ring-offset-1"
+                            )}
+                          >
+                            <Badge size="xs" variant="secondary">
+                              {s.label}
+                            </Badge>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Priority
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {PRIORITIES.map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            aria-label={`Priority ${p}`}
+                            aria-pressed={priorityFilter.has(p)}
+                            onClick={() => togglePriority(p)}
+                            className={cn(
+                              "rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40",
+                              priorityFilter.has(p) && "ring-2 ring-blue-500 ring-offset-1"
+                            )}
+                          >
+                            <Badge
+                              size="xs"
+                              variant={
+                                p === "high" ? "danger" : p === "medium" ? "warning" : "default"
+                              }
+                            >
+                              {p.charAt(0).toUpperCase() + p.slice(1)}
+                            </Badge>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Users
+                      </p>
+                      <UserMultiSelect
+                        value={[...assigneeFilter]}
+                        onChange={(ids) => setAssigneeFilter(new Set(ids))}
+                        resolveUsers={assigneesInView}
+                        projectId={selectedProjectId}
+                        placeholder="Search users..."
+                        emptySearchHint="Type to search project members"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </aside>
+
+              <div className="min-h-0 min-w-0 flex-1 flex flex-col gap-6">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  <Card>
+                    <CardHeader className="pb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Total
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+                      <p className="text-sm text-gray-600">tickets</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Todo
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="text-2xl font-bold text-gray-500">{stats.todo}</div>
+                      <p className="text-sm text-gray-600">not started</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Done
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="text-2xl font-bold text-green-600">{stats.done}</div>
+                      <p className="text-sm text-gray-600">completed</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                      High priority
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="text-2xl font-bold text-red-600">{stats.highPriority}</div>
+                      <p className="text-sm text-gray-600">need attention</p>
+                    </CardContent>
+                  </Card>
+                </div>
 
             <div className="flex flex-col gap-8">
               {highGroup.length > 0 && (
@@ -302,6 +503,8 @@ export function SprintDashboardPanel({
                   No tickets match your filters.
                 </p>
               )}
+            </div>
+              </div>
             </div>
           </>
         )}

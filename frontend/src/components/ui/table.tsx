@@ -9,9 +9,12 @@ type TableSize = "sm" | "md" | "lg"
 /* ================= STYLES ================= */
 
 const tableVariants: Record<TableVariant, string> = {
-  default: "border-collapse",
-  striped: "border-collapse [&_tbody_tr:nth-child(even)]:bg-gray-50",
-  bordered: "border border-gray-200",
+  default:
+    "border-collapse [&_tbody_tr]:border-b [&_tbody_tr]:border-gray-100 [&_tbody_tr:last-child]:border-b-0",
+  striped:
+    "border-collapse [&_tbody_tr:nth-child(even)]:bg-gray-50/80 [&_tbody_tr]:border-b [&_tbody_tr]:border-gray-100 [&_tbody_tr:last-child]:border-b-0",
+  bordered:
+    "border-collapse rounded-lg border border-gray-200 [&_tbody_tr]:border-b [&_tbody_tr]:border-gray-100 [&_tbody_tr:last-child]:border-b-0",
 }
 
 const tableSizes: Record<TableSize, string> = {
@@ -55,7 +58,7 @@ export const TableHeader = forwardRef<
 >(({ className, ...props }, ref) => (
   <thead
     ref={ref}
-    className={cn("bg-gray-100 border-b", className)}
+    className={cn("border-b border-gray-100 bg-gray-50/90", className)}
     {...props}
   />
 ))
@@ -81,7 +84,7 @@ export const TableRow = forwardRef<
 >(({ className, ...props }, ref) => (
   <tr
     ref={ref}
-    className={cn("border-b hover:bg-gray-50", className)}
+    className={cn("transition-colors hover:bg-gray-50/70", className)}
     {...props}
   />
 ))

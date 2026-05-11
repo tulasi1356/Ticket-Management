@@ -72,7 +72,7 @@ export default function Login() {
                 return
             }
             setUser(user)
-            navigate({ to: "/dashboard" })
+            navigate({ to: "/ticketing_system" })
         } catch (e) {
             console.error("Login error:", e)
             setSubmitError("Could not log you in. Please try again.")

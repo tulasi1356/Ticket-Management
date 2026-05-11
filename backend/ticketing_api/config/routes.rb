@@ -9,7 +9,7 @@ Rails.application.routes.draw do
   # root "posts#index"
 
 
-  resources :users do
+  resources :users do 
     collection do
       post :create
       get :index
@@ -22,7 +22,7 @@ Rails.application.routes.draw do
   resource :projects do
     collection do
       post :create
-      get :index
+      get :index 
       post :assign_users_to_project
       put :edit_project
       get :get_project
@@ -43,7 +43,13 @@ Rails.application.routes.draw do
     collection do
       post :create
       get :index
+      post :export
     end
   end
+
+  post "attachments/upload", to: "attachments#create"
+  get "attachments/disk/:filename", to: "attachments#show_disk", constraints: { filename: /[^\/]+/ }
+
+  resources :comments, only: [:index, :create]
 
 end

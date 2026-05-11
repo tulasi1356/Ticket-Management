@@ -1,4 +1,4 @@
 class ApplicationMailer < ActionMailer::Base
-  default from: "from@example.com"
+  default from: -> { ENV["SENDGRID_FROM_EMAIL"].presence || "ticketing@example.com" }
   layout "mailer"
 end

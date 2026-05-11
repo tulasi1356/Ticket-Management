@@ -19,8 +19,10 @@ const sizeClasses: Record<Size, string> = {
 };
 
 const variantClasses: Record<Variant, string> = {
-  default: "border border-gray-300 focus:ring-2 focus:ring-blue-500",
-  error: "border border-red-500 focus:ring-2 focus:ring-red-500",
+  default:
+    "border border-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--app-focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+  error:
+    "border border-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
 };
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(

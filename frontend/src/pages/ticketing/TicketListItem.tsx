@@ -2,6 +2,7 @@ import { Bug, FileText, ListTodo } from "lucide-react"
 
 import { Badge } from "../../components/ui/badge"
 import { AssigneeAvatar } from "../../components/ui/avatar"
+import { Tooltip } from "../../components/ui/tooltip"
 import { cn } from "../../lib/utils"
 import type { Ticket } from "./types"
 
@@ -85,11 +86,22 @@ export function TicketListItem({
             </Badge>
           ) : null}
         </div>
-        <AssigneeAvatar
-          name={ticket.assignee?.name ?? "Unassigned"}
-          title={ticket.assignee?.name ?? "Unassigned"}
-          className="size-8 text-xs"
-        />
+        {ticket.assignee ? (
+          <Tooltip
+            content={ticket.assignee.email?.trim() ? ticket.assignee.email : "No email on file"}
+            side="top"
+          >
+            <span className="flex min-w-0 max-w-[min(200px,28vw)] shrink-0 items-center gap-2 rounded-md px-1 py-0.5 text-left">
+              <AssigneeAvatar name={ticket.assignee.name} size="sm" className="ring-2 ring-white" />
+              <span className="truncate text-sm font-medium text-gray-900">{ticket.assignee.name}</span>
+            </span>
+          </Tooltip>
+        ) : (
+          <span className="flex shrink-0 items-center gap-2 text-sm text-gray-500">
+            <AssigneeAvatar name="Unassigned" size="sm" />
+            Unassigned
+          </span>
+        )}
       </div>
     </button>
   )

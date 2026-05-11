@@ -26,6 +26,21 @@ export type Ticket = {
   status: string
   priority: string
   issue_type: string
+  start_date?: string | null
+  end_date?: string | null
+  attachment_urls?: string[] | null
+}
+
+export type TicketCommentUser = { id: number; name: string; email?: string }
+
+export type TicketComment = {
+  id: number
+  ticket_id: number
+  user_id: number
+  message?: string | null
+  attachment_urls?: string[] | null
+  created_at: string
+  user?: TicketCommentUser | null
 }
 
 export type BoardView = "sprint" | "all" | "mine" | "backlog"

@@ -1,17 +1,22 @@
-# This file should ensure the existence of records required to run the application in every environment (production,
-# development, test). The code here should be idempotent so that it can be executed at any point in every environment.
-# The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
+# Idempotent bootstrap: ensure the admin account exists.
+# Run: bin/rails db:seed
 #
-# Example:
-#
-#   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
-#     MovieGenre.find_or_create_by!(name: genre_name)
-#   end
+# To wipe all data and recreate only admin, uncomment the transaction block below.
 
-admin_email = "admin@gmail.com"
+admin_email = "adminticketingsystem@yopmail.com"
+admin_password = "Admin@123"
+
+# ActiveRecord::Base.transaction do
+#   Comment.delete_all
+#   Ticket.delete_all
+#   Sprint.delete_all
+#   ProjectUser.delete_all
+#   Project.delete_all
+#   User.delete_all
+# end
 
 User.find_or_create_by!(email: admin_email) do |u|
   u.name = "Admin"
-  u.password = "admin123"
+  u.password = admin_password
   u.role = :admin
 end
